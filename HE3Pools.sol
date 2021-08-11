@@ -225,6 +225,7 @@ contract HE3Pools is Ownable {
             if (user.amount == 0) {
                 user.amount = user.amount.add(values[i]);
                 user.initDebt = user.initDebt.add(values[i].mul(pool.accHe3PerShare).div(1e12));
+                user.rewardDebt = user.rewardDebt.add(values[i].mul(pool.accHe3PerShare).div(1e12));
                 pool.totalLp = pool.totalLp.add(values[i]);
             }
             i += 1;
