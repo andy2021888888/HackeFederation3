@@ -27,6 +27,7 @@ contract HE3Pools is Ownable {
         uint256 accHe3PerShare; // Accumulated he3s per share, times 1e12. See below.
         uint256 totalHE3Mint; // the total number of he3 mint.
         uint256 timestamp; // the time of the pool created.
+        bool isStart; // is start mining.
     }
     // The HE3 TOKEN!
     HE3Token public he3;
@@ -82,7 +83,8 @@ contract HE3Pools is Ownable {
                 lastRewardSecond: block.timestamp,
                 accHe3PerShare: 0,
                 totalHE3Mint: 0,
-                timestamp: block.timestamp
+                timestamp: 0,
+                isStart: false
             })
         );
     }
@@ -166,24 +168,28 @@ contract HE3Pools is Ownable {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
-        //uint256 pending = 0;
-        //if (user.amount > 0) {
-        //    pending =
-        //        user.amount.mul(pool.accHe3PerShare).div(1e12).sub(
-        //            user.rewardDebt
-        //        );
+        uint256 pending = 0;
+        if (user.amount > 0) {
+            pending =
+                user.amount.mul(pool.accHe3PerShare).div(1e12).sub(
+                    user.rewardDebt
+                );
         //    safeHe3Transfer(msg.sender, pending);
-        //}
-        if (user.amount == 0) {
-            user.initDebt = user.initDebt.add(_amount.mul(pool.accHe3PerShare).div(1e12));
         }
+        if (pool.isStart == false) {
+            pool.timestamp = block.timestamp;
+            pool.isStart == true;
+        }
+        
+        user.initDebt = user.initDebt.add(_amount.mul(pool.accHe3PerShare).div(1e12));
+        
         pool.lpToken.safeTransferFrom(
             address(msg.sender),
             address(this),
             _amount
         );
         user.amount = user.amount.add(_amount);
-        //user.rewardDebt = user.amount.mul(pool.accHe3PerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accHe3PerShare).div(1e12).sub(pending);
         pool.totalLp = pool.totalLp.add(_amount);
         emit Deposit(msg.sender, _pid, _amount);
     }
