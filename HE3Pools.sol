@@ -179,7 +179,7 @@ contract HE3Pools is Ownable {
         }
         if (pool.isStart == false) {
             pool.timestamp = block.timestamp;
-            pool.isStart == true;
+            pool.isStart = true;
         }
         
         user.initDebt = user.initDebt.add(_amount.mul(pool.accHe3PerShare).div(1e12));
