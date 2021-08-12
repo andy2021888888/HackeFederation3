@@ -58,10 +58,6 @@ contract HE3Pools is Ownable {
         airdropEndBlock = block.number.add(_airdropEndBlock);
     }
     
-    function upTotalAllocPoint(uint256 _totalAllocPoint) public onlyOwner {
-        totalAllocPoint = _totalAllocPoint;
-    }
-    
     function upHE3PerSecond(uint256 _he3PerSecond) public onlyOwner {
         he3PerSecond = _he3PerSecond;
     }
