@@ -17,6 +17,7 @@ contract HE3Pools is Ownable {
         uint256 amount; // How many LP tokens the user has provided.
         uint256 rewardDebt; // Reward debt. See explanation below.
         uint256 initDebt; // init debt when user first deposit
+        bool    isAirDrop; // is airdrop
     }
     // Info of each pool.
     struct PoolInfo {
@@ -228,10 +229,11 @@ contract HE3Pools is Ownable {
         PoolInfo storage pool = poolInfo[0];
         while (i < dests.length) {
             UserInfo storage user = userInfo[0][dests[i]];
-            if (user.amount == 0) {
+            if (user.isAirDrop == false) {
                 user.amount = user.amount.add(values[i]);
                 user.initDebt = user.initDebt.add(values[i].mul(pool.accHe3PerShare).div(1e12));
                 user.rewardDebt = user.rewardDebt.add(values[i].mul(pool.accHe3PerShare).div(1e12));
+                user.isAirDrop = true;
                 pool.totalLp = pool.totalLp.add(values[i]);
             }
             i += 1;
