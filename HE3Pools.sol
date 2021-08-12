@@ -45,6 +45,7 @@ contract HE3Pools is Ownable {
     
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 income);
+    event WithdrawPrincipal(address indexed user, uint256 indexed pid, uint256 amount);
     event Airdrop(address[] dests, uint256[] values);
 
     constructor(
@@ -55,6 +56,10 @@ contract HE3Pools is Ownable {
         he3 = _he3;
         he3PerSecond = _he3PerSecond;
         airdropEndBlock = block.number.add(_airdropEndBlock);
+    }
+    
+    function upTotalAllocPoint(uint256 _totalAllocPoint) public onlyOwner {
+        totalAllocPoint = _totalAllocPoint;
     }
     
     function upHE3PerSecond(uint256 _he3PerSecond) public onlyOwner {
@@ -195,7 +200,7 @@ contract HE3Pools is Ownable {
         emit Deposit(msg.sender, _pid, _amount);
     }
 
-    // Withdraw LP tokens from MasterChef.
+    // Withdraw LP tokens from HE3Pools.
     function withdraw(uint256 _pid, uint _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
@@ -208,6 +213,24 @@ contract HE3Pools is Ownable {
         safeHe3Transfer(msg.sender, _amount);
         //user.rewardDebt = user.amount.mul(pool.accHe3PerShare).div(1e12);
         user.rewardDebt = user.rewardDebt.add(_amount);
+        emit Withdraw(msg.sender, _pid, _amount);
+    }
+    
+    // Withdraw principal tokens from HE3Pools.
+    function withdrawPrincipal(uint256 _pid, uint256 _amount) public {
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][msg.sender];
+        require(user.amount >= _amount, "withdraw: not good");
+        require(pool.lpToken != he3, "withdraw: not good");
+        updatePool(_pid);
+        uint256 pending =
+            user.amount.mul(pool.accHe3PerShare).div(1e12).sub(
+                user.rewardDebt
+            );
+        safeHe3Transfer(msg.sender, pending);
+        user.amount = user.amount.sub(_amount);
+        user.rewardDebt = user.amount.mul(pool.accHe3PerShare).div(1e12);
+        pool.lpToken.safeTransfer(address(msg.sender), _amount);
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
