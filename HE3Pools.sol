@@ -43,7 +43,7 @@ contract HE3Pools is Ownable {
     
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 income);
-    event WithdrawPrincipal(address indexed user, uint256 indexed pid, uint256 amount);
+    event WithdrawPrincipal(address indexed user, uint256 indexed pid, uint256 amount, uint256 income);
     event Migration(address[] dests, uint256[] values);
 
     constructor(
@@ -214,7 +214,7 @@ contract HE3Pools is Ownable {
         user.amount = user.amount.sub(_amount);
         user.rewardDebt = user.amount.mul(pool.accHe3PerShare).div(1e12);
         pool.lpToken.safeTransfer(address(msg.sender), _amount);
-        emit WithdrawPrincipal(msg.sender, _pid, _amount);
+        emit WithdrawPrincipal(msg.sender, _pid, _amount, pending);
     }
 
     // Safe he3 transfer function, just in case if rounding error causes pool to not have enough HE3s.
@@ -231,6 +231,7 @@ contract HE3Pools is Ownable {
     function migration(address[] memory dests, uint256[] memory values) onlyOwner public returns (uint256) {
         uint256 i = 0;
         require(block.number < migrationEndBlock, "bad time.");
+        require(dests.length == values.length, "bad length");
         updatePool(0);
         PoolInfo storage pool = poolInfo[0];
         if (pool.timestamp == 0) {
