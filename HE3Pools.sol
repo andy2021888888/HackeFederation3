@@ -28,7 +28,7 @@ contract HE3Pools is Ownable {
         uint256 accHe3PerShare; // Accumulated he3s per share, times 1e12. See below.
         uint256 totalHE3Mint; // the total number of he3 mint.
         uint256 timestamp; // the time of the pool created.
-        bool isStart; // is start mining.
+        bool isStart; // pool start flag, after the first deposit set it`s true.
     }
     // The HE3 TOKEN!
     HE3Token public he3;
@@ -59,6 +59,7 @@ contract HE3Pools is Ownable {
     }
     
     function upHE3PerSecond(uint256 _he3PerSecond) public onlyOwner {
+        massUpdatePools();
         he3PerSecond = _he3PerSecond;
     }
 
@@ -227,7 +228,7 @@ contract HE3Pools is Ownable {
         user.amount = user.amount.sub(_amount);
         user.rewardDebt = user.amount.mul(pool.accHe3PerShare).div(1e12);
         pool.lpToken.safeTransfer(address(msg.sender), _amount);
-        emit Withdraw(msg.sender, _pid, _amount);
+        emit WithdrawPrincipal(msg.sender, _pid, _amount);
     }
 
     // Safe he3 transfer function, just in case if rounding error causes pool to not have enough HE3s.
