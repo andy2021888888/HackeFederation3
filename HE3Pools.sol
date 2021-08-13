@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.2/contracts/token/ERC20/IERC20.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.2/contracts/token/ERC20/utils/SafeERC20.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.2/contracts/utils/structs/EnumerableSet.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.2/contracts/utils/math/SafeMath.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.2/contracts/access/Ownable.sol";
 import "./HE3.sol";
@@ -16,8 +15,8 @@ contract HE3Pools is Ownable {
     struct UserInfo {
         uint256 amount; // How many LP tokens the user has provided.
         uint256 rewardDebt; // Reward debt. See explanation below.
-        uint256 initDebt; // init debt when user first deposit
-        bool    isAirDrop; // is airdrop
+        uint256 totalReward; // the total number the user reward.
+        bool    isMigration; // token migration flag.
     }
     // Info of each pool.
     struct PoolInfo {
@@ -27,7 +26,7 @@ contract HE3Pools is Ownable {
         uint256 lastRewardSecond; // Last block number that he3s distribution occurs.
         uint256 accHe3PerShare; // Accumulated he3s per share, times 1e12. See below.
         uint256 totalHE3Mint; // the total number of he3 mint.
-        uint256 timestamp; // the time of the pool created.
+        uint256 timestamp; // the time of the pool start mining.
     }
     // The HE3 TOKEN!
     HE3Token public he3;
@@ -39,35 +38,29 @@ contract HE3Pools is Ownable {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation poitns. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint = 0;
-    // airdrop end block;
-    uint256 public airdropEndBlock;
+    // migration end block;
+    uint256 public migrationEndBlock;
     
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 income);
     event WithdrawPrincipal(address indexed user, uint256 indexed pid, uint256 amount);
-    event Airdrop(address[] dests, uint256[] values);
+    event Migration(address[] dests, uint256[] values);
 
     constructor(
         HE3Token _he3,
         uint256 _he3PerSecond,
-        uint256 _airdropEndBlock
+        uint256 _migrationBlockNums
     ) {
         he3 = _he3;
         he3PerSecond = _he3PerSecond;
-        airdropEndBlock = block.number.add(_airdropEndBlock);
+        migrationEndBlock = block.number.add(_migrationBlockNums);
     }
-    
-    //function upHE3PerSecond(uint256 _he3PerSecond) public onlyOwner {
-    //    massUpdatePools();
-    //    he3PerSecond = _he3PerSecond;
-    //}
 
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
-    // DO NOT add the same LP token more than once. Rewards will be messed up if you do.
     function add(
         uint256 _allocPoint,
         IERC20 _lpToken,
@@ -114,7 +107,6 @@ contract HE3Pools is Ownable {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accHe3PerShare = pool.accHe3PerShare;
-        //uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         uint256 lpSupply = pool.totalLp;
         if (block.timestamp > pool.lastRewardSecond && lpSupply != 0) {
             uint256 multiplier = 
@@ -144,7 +136,6 @@ contract HE3Pools is Ownable {
         if (block.timestamp <= pool.lastRewardSecond) {
             return;
         }
-        //uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         uint256 lpSupply = pool.totalLp;
         if (lpSupply == 0) {
             pool.lastRewardSecond = block.timestamp;
@@ -164,7 +155,7 @@ contract HE3Pools is Ownable {
         pool.lastRewardSecond = block.timestamp;
     }
 
-    // Deposit LP tokens to MasterChef for HE3 allocation.
+    // Deposit LP tokens to Pools for mining HE3.
     function deposit(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
@@ -175,26 +166,24 @@ contract HE3Pools is Ownable {
                 user.amount.mul(pool.accHe3PerShare).div(1e12).sub(
                     user.rewardDebt
                 );
-        //    safeHe3Transfer(msg.sender, pending);
         }
         if (pool.timestamp == 0) {
             pool.timestamp = block.timestamp;
         }
-        
-        user.initDebt = user.initDebt.add(_amount.mul(pool.accHe3PerShare).div(1e12));
         
         pool.lpToken.safeTransferFrom(
             address(msg.sender),
             address(this),
             _amount
         );
+        
         user.amount = user.amount.add(_amount);
         user.rewardDebt = user.amount.mul(pool.accHe3PerShare).div(1e12).sub(pending);
         pool.totalLp = pool.totalLp.add(_amount);
         emit Deposit(msg.sender, _pid, _amount);
     }
 
-    // Withdraw LP tokens from HE3Pools.
+    // Withdraw reward from HE3Pools.
     function withdraw(uint256 _pid, uint _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
@@ -205,7 +194,7 @@ contract HE3Pools is Ownable {
             );
         require(_amount <= pending, "_amount error.");
         safeHe3Transfer(msg.sender, _amount);
-        //user.rewardDebt = user.amount.mul(pool.accHe3PerShare).div(1e12);
+        user.totalReward = user.totalReward.add(_amount);
         user.rewardDebt = user.rewardDebt.add(_amount);
         emit Withdraw(msg.sender, _pid, _amount);
     }
@@ -238,24 +227,26 @@ contract HE3Pools is Ownable {
         }
     }
     
-    // Airdrop for user from ethereum
-    function airdrop(address[] memory dests, uint256[] memory values) onlyOwner public returns (uint256) {
+    // Token migration from ethereum for user
+    function migration(address[] memory dests, uint256[] memory values) onlyOwner public returns (uint256) {
         uint256 i = 0;
-        require(block.number < airdropEndBlock, "bad time.");
+        require(block.number < migrationEndBlock, "bad time.");
         updatePool(0);
         PoolInfo storage pool = poolInfo[0];
+        if (pool.timestamp == 0) {
+            pool.timestamp = block.timestamp;
+        }
         while (i < dests.length) {
             UserInfo storage user = userInfo[0][dests[i]];
-            if (user.isAirDrop == false) {
+            if (user.isMigration == false) {
                 user.amount = user.amount.add(values[i]);
-                user.initDebt = user.initDebt.add(values[i].mul(pool.accHe3PerShare).div(1e12));
                 user.rewardDebt = user.rewardDebt.add(values[i].mul(pool.accHe3PerShare).div(1e12));
-                user.isAirDrop = true;
+                user.isMigration = true;
                 pool.totalLp = pool.totalLp.add(values[i]);
             }
             i += 1;
         }
-        emit Airdrop(dests, values);
+        emit Migration(dests, values);
         return(i);
     }
 }
