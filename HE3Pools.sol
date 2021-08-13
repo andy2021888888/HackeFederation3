@@ -28,7 +28,6 @@ contract HE3Pools is Ownable {
         uint256 accHe3PerShare; // Accumulated he3s per share, times 1e12. See below.
         uint256 totalHE3Mint; // the total number of he3 mint.
         uint256 timestamp; // the time of the pool created.
-        bool isStart; // pool start flag, after the first deposit set it`s true.
     }
     // The HE3 TOKEN!
     HE3Token public he3;
@@ -58,10 +57,10 @@ contract HE3Pools is Ownable {
         airdropEndBlock = block.number.add(_airdropEndBlock);
     }
     
-    function upHE3PerSecond(uint256 _he3PerSecond) public onlyOwner {
-        massUpdatePools();
-        he3PerSecond = _he3PerSecond;
-    }
+    //function upHE3PerSecond(uint256 _he3PerSecond) public onlyOwner {
+    //    massUpdatePools();
+    //    he3PerSecond = _he3PerSecond;
+    //}
 
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
@@ -86,8 +85,7 @@ contract HE3Pools is Ownable {
                 lastRewardSecond: block.timestamp,
                 accHe3PerShare: 0,
                 totalHE3Mint: 0,
-                timestamp: 0,
-                isStart: false
+                timestamp: 0
             })
         );
     }
@@ -179,9 +177,8 @@ contract HE3Pools is Ownable {
                 );
         //    safeHe3Transfer(msg.sender, pending);
         }
-        if (pool.isStart == false) {
+        if (pool.timestamp == 0) {
             pool.timestamp = block.timestamp;
-            pool.isStart = true;
         }
         
         user.initDebt = user.initDebt.add(_amount.mul(pool.accHe3PerShare).div(1e12));
