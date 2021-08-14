@@ -38,8 +38,12 @@ contract HE3Pools is Ownable {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation poitns. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint = 0;
-    // migration end block;
+    // migration end block.
     uint256 public migrationEndBlock;
+    // mint limit.
+    uint256 public totalMint;
+    // current mint.
+    uint256 public currentMint;
     
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 income);
@@ -49,11 +53,13 @@ contract HE3Pools is Ownable {
     constructor(
         HE3Token _he3,
         uint256 _he3PerSecond,
-        uint256 _migrationBlockNums
+        uint256 _migrationBlockNums,
+        uint256 _totalMint
     ) {
         he3 = _he3;
         he3PerSecond = _he3PerSecond;
         migrationEndBlock = block.number.add(_migrationBlockNums);
+        totalMint = _totalMint.mul(1e18);
     }
 
     function poolLength() external view returns (uint256) {
@@ -132,6 +138,9 @@ contract HE3Pools is Ownable {
 
     // Update reward variables of the given pool to be up-to-date.
     function updatePool(uint256 _pid) public {
+        if (currentMint == totalMint) {
+            return;
+        }
         PoolInfo storage pool = poolInfo[_pid];
         if (block.timestamp <= pool.lastRewardSecond) {
             return;
@@ -147,6 +156,10 @@ contract HE3Pools is Ownable {
             multiplier.mul(he3PerSecond).mul(pool.allocPoint).div(
                 totalAllocPoint
             );
+        if ( currentMint.add(he3Reward) > totalMint) {
+            he3Reward = totalMint.sub(currentMint);
+        }
+        currentMint = currentMint.add(he3Reward);
         he3.mint(address(this), he3Reward);
         pool.totalHE3Mint = pool.totalHE3Mint.add(he3Reward);
         pool.accHe3PerShare = pool.accHe3PerShare.add(
