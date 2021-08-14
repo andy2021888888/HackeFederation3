@@ -27,7 +27,6 @@ contract HE3Pools is Ownable {
         uint256 accHe3PerShare; // Accumulated he3s per share, times 1e12. See below.
         uint256 totalHE3Mint; // the total number of he3 mint.
         uint256 timestamp; // the time of the pool start mining.
-        uint256 endTimestamp; // the time of the pool end mining.
     }
     // The HE3 TOKEN!
     HE3Token public he3;
@@ -87,8 +86,7 @@ contract HE3Pools is Ownable {
                 lastRewardSecond: block.timestamp,
                 accHe3PerShare: 0,
                 totalHE3Mint: 0,
-                timestamp: 0,
-                endTimestamp: 0
+                timestamp: 0
             })
         );
     }
@@ -118,13 +116,16 @@ contract HE3Pools is Ownable {
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accHe3PerShare = pool.accHe3PerShare;
         uint256 lpSupply = pool.totalLp;
-        if (block.timestamp > pool.lastRewardSecond && lpSupply != 0 && pool.endTimestamp == 0) {
+        if (block.timestamp > pool.lastRewardSecond && lpSupply != 0) {
             uint256 multiplier = 
                 block.timestamp.sub(pool.lastRewardSecond);
             uint256 he3Reward =
                 multiplier.mul(he3PerSecond).mul(pool.allocPoint).div(
                     totalAllocPoint
                 );
+            if ( currentMint.add(he3Reward) > totalMint) {
+                he3Reward = totalMint.sub(currentMint);
+            }
             accHe3PerShare = accHe3PerShare.add(
                 he3Reward.mul(1e12).div(lpSupply)
             );
@@ -162,7 +163,6 @@ contract HE3Pools is Ownable {
             );
         if ( currentMint.add(he3Reward) > totalMint) {
             he3Reward = totalMint.sub(currentMint);
-            pool.endTimestamp = pool.lastRewardSecond.add(he3Reward.div(he3PerSecond));
         }
         currentMint = currentMint.add(he3Reward);
         he3.mint(address(this), he3Reward);
@@ -170,11 +170,7 @@ contract HE3Pools is Ownable {
         pool.accHe3PerShare = pool.accHe3PerShare.add(
             he3Reward.mul(1e12).div(lpSupply)
         );
-        if (pool.endTimestamp != 0) {
-            pool.lastRewardSecond = pool.endTimestamp;
-        }else{
-            pool.lastRewardSecond = block.timestamp;
-        }
+        pool.lastRewardSecond = block.timestamp;
     }
 
     // Deposit LP tokens to Pools for mining HE3.
