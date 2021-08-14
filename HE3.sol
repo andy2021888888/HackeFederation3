@@ -3,21 +3,16 @@
 pragma solidity ^0.8.0;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.2/contracts/token/ERC20/ERC20.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.2/contracts/utils/math/SafeMath.sol";
 
 contract HE3Token is ERC20 {
-    using SafeMath for uint256;
     
     address private _owner;
-    uint256 public  totalMint;
-    uint256 public  currentMint;
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     
-    constructor(address initor, uint256 _totalMint, string memory name, string memory symbol) ERC20(name, symbol) {
+    constructor(address initor, string memory name, string memory symbol) ERC20(name, symbol) {
         _setOwner(_msgSender());
         _mint(initor, 1000 * 10 ** uint(decimals()));
-        totalMint = _totalMint * 10 ** uint(decimals());
     }
 
     /**
@@ -62,11 +57,6 @@ contract HE3Token is ERC20 {
     }
 
     function mint(address account, uint256 amount) onlyOwner public {
-        require(currentMint < totalMint, "bad amount");
-        if ( currentMint.add(amount) > totalMint) {
-            amount = totalMint.sub(currentMint);
-        }
-        currentMint = currentMint.add(amount);
         _mint(account, amount);
     }
 }
