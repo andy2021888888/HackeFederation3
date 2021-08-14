@@ -212,6 +212,7 @@ contract HE3Pools is Ownable {
             );
         safeHe3Transfer(msg.sender, pending);
         user.amount = user.amount.sub(_amount);
+        pool.totalLp = pool.totalLp.sub(_amount);
         user.rewardDebt = user.amount.mul(pool.accHe3PerShare).div(1e12);
         pool.lpToken.safeTransfer(address(msg.sender), _amount);
         emit WithdrawPrincipal(msg.sender, _pid, _amount, pending);
