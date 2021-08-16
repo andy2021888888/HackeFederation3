@@ -12,7 +12,7 @@ contract HE3Token is ERC20 {
     
     constructor(address initor, string memory name, string memory symbol) ERC20(name, symbol) {
         _setOwner(_msgSender());
-        _mint(initor, 1000 * 10 ** uint(decimals()));
+        _mint(initor, 50000 * 10 ** uint(decimals()));
     }
 
     /**
